@@ -1,90 +1,99 @@
 #include <ntifs.h>
 
-#define DEVICE_NAME L"\\driver\\TestDevice"
-#define SYM_NAME L"\\??\\TestDevice"
+#define CRL_CODE_INDEX 0x800
+#define TEST_CODE (ULONG)CTL_CODE(FILE_DEVICE_UNKNOWN, CRL_CODE_INDEX, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define CDO_NAME L"\\Device\\slbkcdo_e10adcfuck"
+#define CWK_CDO_SYB_NAME L"\\??\\slbkcdo_e10adcfuck"
 
-#define CODE_CTR_INDEX 0x800
-#define TEST_CODE CTL_CODE(FILE_DEVICE_UNKNOWN, \
-														CODE_CTR_INDEX, \
-														METHOD_BUFFERED, \
-														FILE_ANY_ACCESS)
+PDEVICE_OBJECT pDevice = NULL;
 
-NTSTATUS DriverDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
-	Irp->IoStatus.Status = STATUS_SUCCESS;
-	IoCompleteRequest(Irp, 0);
-	return STATUS_SUCCESS;
-}
-
-NTSTATUS Dispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
-	PIO_STACK_LOCATION ioStack = IoGetCurrentIrpStackLocation(Irp);
-
-	if (ioStack->MajorFunction == IRP_MJ_DEVICE_CONTROL) {
-		int size = ioStack->Parameters.DeviceIoControl.InputBufferLength;
-		ULONG IoControlCode = ioStack->Parameters.DeviceIoControl.IoControlCode;
-		switch (IoControlCode) {
-			case TEST_CODE:
-			{
-				int* buffer = (int*)Irp->AssociatedIrp.SystemBuffer;
-				KdPrintEx((77, 0, "[db]: %x\r\n", *buffer));
-				break;
-
-			}
-		}
-	}
-
-	Irp->IoStatus.Status = STATUS_SUCCESS;
-	IoCompleteRequest(Irp, 0);
-	return STATUS_SUCCESS;
-}
-
-
-VOID DriverUnload(PDRIVER_OBJECT pDriver) {}
-
-
-
-
-NTSTATUS DriverEntry(PDRIVER_OBJECT pDriver, PUNICODE_STRING pReg) {
-
-	UNICODE_STRING deviceName = { 0 };
-	RtlInitUnicodeString(&deviceName, DEVICE_NAME);
-
-	UNICODE_STRING symName = { 0 };
-	RtlInitUnicodeString(&symName, SYM_NAME);
-
-	PDEVICE_OBJECT pDevice = NULL;
-
+NTSTATUS TestCreateCDO(PDRIVER_OBJECT pDriver) {
+	UNICODE_STRING cdoName = RTL_CONSTANT_STRING(CDO_NAME);
 	NTSTATUS status = IoCreateDevice(
 		pDriver,
 		0,
-		&deviceName,
+		&cdoName,
 		FILE_DEVICE_UNKNOWN,
 		FILE_DEVICE_SECURE_OPEN,
 		FALSE,
-		pDevice
+		&pDevice
 	);
 
-	if (NT_SUCCESS(status)) {
-		KdPrintEx((77, 0, "res: %x\r\n", status));
-		return status;
+	return status;
+}
+
+NTSTATUS TestCreateSymbolicLink(PDRIVER_OBJECT drvier) {
+	UNICODE_STRING cdoName = RTL_CONSTANT_STRING(CDO_NAME);
+	UNICODE_STRING symName = RTL_CONSTANT_STRING(CWK_CDO_SYB_NAME);
+	return IoCreateSymbolicLink(&symName, &cdoName);
+}
+
+NTSTATUS InitDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
+	NTSTATUS status = STATUS_SUCCESS;
+	ULONG retLen = 0;
+	Irp->IoStatus.Status = status;
+	Irp->IoStatus.Information = retLen;
+	IoCompleteRequest(Irp, IO_NO_INCREMENT);
+	return status;
+}
+
+NTSTATUS TestDispatch(
+	PDEVICE_OBJECT DeviceObject,
+	PIRP Irp
+) {
+	PIO_STACK_LOCATION ioStack = IoGetCurrentIrpStackLocation(Irp);
+	NTSTATUS status = STATUS_SUCCESS;
+	ULONG retLen = 0;
+	DbgBreakPoint();
+	if (ioStack->MajorFunction == IRP_MJ_DEVICE_CONTROL) {
+		PVOID buffer = Irp->AssociatedIrp.SystemBuffer;
+		ULONG inlen = ioStack->Parameters.DeviceIoControl.InputBufferLength;
+		ULONG outlen = ioStack->Parameters.DeviceIoControl.OutputBufferLength;
+
+		switch (ioStack->Parameters.DeviceIoControl.IoControlCode) {
+		case TEST_CODE:
+			KdPrintEx((77, 0, "[db]:%x\r\n", *(PULONG)buffer));
+			break;
+		default:
+			status = STATUS_INVALID_PARAMETER;
+			break;
+		}
+
 	}
+	Irp->IoStatus.Status = status;
+	Irp->IoStatus.Information = retLen;
+	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-	// °ó¶¨·ûºÅÁ´½Ó
-	status = IoCreateSymbolicLink(&symName, &deviceName);
+	return status;
 
+}
+
+VOID Unload(PDRIVER_OBJECT driver) {
+	UNICODE_STRING symName = RTL_CONSTANT_STRING(CWK_CDO_SYB_NAME);
+	IoDeleteDevice(pDevice);
+	IoDeleteSymbolicLink(&symName);
+}
+
+NTSTATUS DriverEntry(PDRIVER_OBJECT pDriver, PUNICODE_STRING pReg) {
+	pDriver->DriverUnload = Unload;
+	pDriver->MajorFunction[IRP_MJ_CREATE] = InitDispatch;
+	pDriver->MajorFunction[IRP_MJ_CLOSE] = InitDispatch;
+	pDriver->MajorFunction[IRP_MJ_DEVICE_CONTROL] = TestDispatch;
+
+	NTSTATUS status;
+	status = TestCreateCDO(pDriver);
 	if (!NT_SUCCESS(status)) {
-		IoDeleteDevice(pDevice);
-		KdPrintEx((77, 0, "res: %x\r\n", status));
+		KdPrint(("create CDO Failed..."));
 		return status;
 	}
-
 	pDevice->Flags &= ~DO_DEVICE_INITIALIZING;
 	pDevice->Flags |= DO_BUFFERED_IO;
 
-	pDriver->MajorFunction[IRP_MJ_CREATE] = DriverDispatch;
-	pDriver->MajorFunction[IRP_MJ_CLOSE] = DriverDispatch;
-	pDriver->MajorFunction[IRP_MJ_DEVICE_CONTROL] = Dispatch;
+	status = TestCreateSymbolicLink(pDriver);
+	if (!NT_SUCCESS(status)) {
+		KdPrint(("create symboliclink failed..."));
+		return status;
+	}
 
-
-	pDriver->DriverUnload = DriverUnload;
 	return STATUS_SUCCESS;
 }
