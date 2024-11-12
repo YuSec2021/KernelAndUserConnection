@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.35325.158
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Device", "Device.vcxproj", "{905D28A5-F936-4C92-BB4C-73C2CD5F859C}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "R3", "..\R3\R3.vcxproj", "{A3A61D9E-F383-4243-988C-9AB88204D65B}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "R3", "..\User\R3\R3.vcxproj", "{A3A61D9E-F383-4243-988C-9AB88204D65B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

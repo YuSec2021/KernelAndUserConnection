@@ -19,7 +19,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.c">
+    <ClCompile Include="r0.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

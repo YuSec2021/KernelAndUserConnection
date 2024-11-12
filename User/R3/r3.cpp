@@ -20,16 +20,16 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	);
 
 	if (pDevice == INVALID_HANDLE_VALUE) {
-		printf("coworker demo: Open device failed. \r\n");
+		printf("Open device failed. \r\n");
 		return -1;
 	}
 
-	char msgArray[] = "Test message from app.\r\n";
+	char msgArray[] = "Test Message From Ring3.\r\n";
 	char* msg = msgArray;
 	ULONG retLen = 0;
 
 	if (!DeviceIoControl(pDevice, TEST_CODE, msg, strlen(msg) + 1, NULL, 0, &retLen, 0)) {
-		printf("send failed..\r\n");
+		printf("Send Message Failed..\r\n");
 		CloseHandle(pDevice);
 		return -1;
 	}
