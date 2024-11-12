@@ -1,7 +1,9 @@
 #include <ntifs.h>
 
 #define CRL_CODE_INDEX 0x800
-#define TEST_CODE (ULONG)CTL_CODE(FILE_DEVICE_UNKNOWN, CRL_CODE_INDEX, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define TEST_R3TOR0_CODE (ULONG)CTL_CODE(FILE_DEVICE_UNKNOWN, CRL_CODE_INDEX, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define TEST_R0TOR3_CODE (ULONG)CTL_CODE(FILE_DEVICE_UNKNOWN, CRL_CODE_INDEX+1, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
 #define CDO_NAME L"\\Device\\TestDevice"
 #define SYM_NAME L"\\??\\TestDevice"
 
@@ -41,19 +43,32 @@ NTSTATUS TestDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
 	PIO_STACK_LOCATION ioStack = IoGetCurrentIrpStackLocation(Irp);
 	NTSTATUS status = STATUS_SUCCESS;
 	ULONG retLen = 0;
-	DbgBreakPoint();
+
 	if (ioStack->MajorFunction == IRP_MJ_DEVICE_CONTROL) {
-		PVOID buffer = Irp->AssociatedIrp.SystemBuffer;
-		ULONG inlen = ioStack->Parameters.DeviceIoControl.InputBufferLength;
-		ULONG outlen = ioStack->Parameters.DeviceIoControl.OutputBufferLength;
 
 		switch (ioStack->Parameters.DeviceIoControl.IoControlCode) {
-		case TEST_CODE:
-			KdPrintEx((77, 0, "[db]:%s\r\n", buffer));
-			break;
-		default:
-			status = STATUS_INVALID_PARAMETER;
-			break;
+			case TEST_R3TOR0_CODE:
+			{
+				PVOID buffer = Irp->AssociatedIrp.SystemBuffer;
+				ULONG inlen = ioStack->Parameters.DeviceIoControl.InputBufferLength;
+				// receive Message
+				KdPrintEx((77, 0, "[db]:%s\r\n", buffer));
+				break;
+			}
+			case TEST_R0TOR3_CODE:
+			{
+				PVOID buffer = Irp->AssociatedIrp.SystemBuffer;
+				ULONG outlen = ioStack->Parameters.DeviceIoControl.OutputBufferLength;
+				// send Message
+				ULONG x = 2000;
+				memcpy((PULONG)buffer, &x, sizeof(ULONG));
+				Irp->IoStatus.Information = outlen; // …Ë÷√
+				DbgBreakPoint();
+				break;
+			}
+			default:
+				status = STATUS_INVALID_PARAMETER;
+				break;
 		}
 
 	}
