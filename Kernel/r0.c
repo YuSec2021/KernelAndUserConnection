@@ -2,8 +2,8 @@
 
 #define CRL_CODE_INDEX 0x800
 #define TEST_CODE (ULONG)CTL_CODE(FILE_DEVICE_UNKNOWN, CRL_CODE_INDEX, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define CDO_NAME L"\\Device\\slbkcdo_e10adcfuck"
-#define CWK_CDO_SYB_NAME L"\\??\\slbkcdo_e10adcfuck"
+#define CDO_NAME L"\\Device\\TestDevice"
+#define SYM_NAME L"\\??\\TestDevice"
 
 PDEVICE_OBJECT pDevice = NULL;
 
@@ -24,7 +24,7 @@ NTSTATUS TestCreateCDO(PDRIVER_OBJECT pDriver) {
 
 NTSTATUS TestCreateSymbolicLink(PDRIVER_OBJECT drvier) {
 	UNICODE_STRING cdoName = RTL_CONSTANT_STRING(CDO_NAME);
-	UNICODE_STRING symName = RTL_CONSTANT_STRING(CWK_CDO_SYB_NAME);
+	UNICODE_STRING symName = RTL_CONSTANT_STRING(SYM_NAME);
 	return IoCreateSymbolicLink(&symName, &cdoName);
 }
 
@@ -37,10 +37,7 @@ NTSTATUS InitDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
 	return status;
 }
 
-NTSTATUS TestDispatch(
-	PDEVICE_OBJECT DeviceObject,
-	PIRP Irp
-) {
+NTSTATUS TestDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
 	PIO_STACK_LOCATION ioStack = IoGetCurrentIrpStackLocation(Irp);
 	NTSTATUS status = STATUS_SUCCESS;
 	ULONG retLen = 0;
@@ -52,7 +49,7 @@ NTSTATUS TestDispatch(
 
 		switch (ioStack->Parameters.DeviceIoControl.IoControlCode) {
 		case TEST_CODE:
-			KdPrintEx((77, 0, "[db]:%x\r\n", *(PULONG)buffer));
+			KdPrintEx((77, 0, "[db]:%s\r\n", buffer));
 			break;
 		default:
 			status = STATUS_INVALID_PARAMETER;
@@ -69,7 +66,7 @@ NTSTATUS TestDispatch(
 }
 
 VOID Unload(PDRIVER_OBJECT driver) {
-	UNICODE_STRING symName = RTL_CONSTANT_STRING(CWK_CDO_SYB_NAME);
+	UNICODE_STRING symName = RTL_CONSTANT_STRING(SYM_NAME);
 	IoDeleteDevice(pDevice);
 	IoDeleteSymbolicLink(&symName);
 }
