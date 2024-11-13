@@ -102,17 +102,15 @@ NTSTATUS ReadWriteDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
 
 	if (ioStack->MajorFunction == IRP_MJ_READ) { // Read Data From Ring3
 		LARGE_INTEGER ByteOffset = ioStack->Parameters.Write.ByteOffset;
-		UNICODE_STRING writeStr = { 0 };
-		RtlInitUnicodeString(&writeStr, L"Send Message To Ring3 by IRP_MJ_WRITE");
-		ioStack->Parameters.Write.Length = writeStr.Length;
-		memcpy(buffer, &writeStr, writeStr.Length);
-		Irp->IoStatus.Information = writeStr.Length;
+		char* writeStr = "Send Message To Ring3 by IRP_MJ_READ";
+		ULONG writeLen = ioStack->Parameters.Write.Length = strlen(writeStr) + 1;
+		memcpy(buffer, writeStr, writeLen);
+		Irp->IoStatus.Information = writeLen;
 	}
 
 	Irp->IoStatus.Status = status;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 	return status;
-
 }
 
 VOID BindMajorFunctionByDeviceIoControl(PDRIVER_OBJECT pDriver) {

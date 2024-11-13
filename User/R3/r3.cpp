@@ -68,8 +68,8 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	HANDLE pDevice = OpenDevice();
 	DWORD p = 0;
 
-	char sendStr[] = "Send Message To Ring0 By IRP_MJ_READ";
-	BOOLEAN res = WriteFile(pDevice, sendStr, strlen(sendStr), &p, NULL);
+	char sendStr[] = "Send Message To Ring0 By IRP_MJ_WRITE";
+	BOOLEAN res = WriteFile(pDevice, sendStr, strlen(sendStr)+1, &p, NULL);
 	if (res) {
 		printf("Write Success\r\n");
 	}
