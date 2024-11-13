@@ -66,16 +66,22 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	receiveMessage();*/
 
 	HANDLE pDevice = OpenDevice();
+	DWORD p = 0;
+
 	char sendStr[] = "Send Message To Ring0 By IRP_MJ_READ";
-	BOOLEAN res = WriteFile(pDevice, sendStr, strlen(sendStr), NULL, NULL);
+	BOOLEAN res = WriteFile(pDevice, sendStr, strlen(sendStr), &p, NULL);
 	if (res) {
 		printf("Write Success\r\n");
 	}
-
+	
 	char* recStr = (char*)malloc(0x1000);
+	res = ReadFile(pDevice, recStr, 0x1000, &p, NULL);
+	if (res) {
+		printf("Read Success\r\n");
+		printf("[db]: %s\r\n", recStr);
+	}
 
-	res = ReadFile(pDevice, recStr, 0x1000, NULL, NULL);
-
+	CloseHandle(pDevice);
 
 	return 0;
 }

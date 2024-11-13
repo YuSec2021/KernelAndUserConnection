@@ -94,17 +94,19 @@ NTSTATUS ReadWriteDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
 	ULONG retLen = 0;
 
 	PVOID buffer = Irp->AssociatedIrp.SystemBuffer;
-	if (ioStack->MajorFunction == IRP_MJ_READ) { // Read Data From Ring3
+	if (ioStack->MajorFunction == IRP_MJ_WRITE) { // Write Data To Ring3
 		ULONG readLen = ioStack->Parameters.Read.Length;
 		LARGE_INTEGER ByteOffset = ioStack->Parameters.Read.ByteOffset;
 		KdPrintEx((77, 0, "[db]: %s\r\n", buffer));
 	}
 
-	if (ioStack->MajorFunction == IRP_MJ_WRITE) { // Write Data To Ring3
-		ULONG writeLen = ioStack->Parameters.Write.Length;
+	if (ioStack->MajorFunction == IRP_MJ_READ) { // Read Data From Ring3
 		LARGE_INTEGER ByteOffset = ioStack->Parameters.Write.ByteOffset;
-		UNICODE_STRING sen
-		ioStack->Parameters.Write.Length = 
+		UNICODE_STRING writeStr = { 0 };
+		RtlInitUnicodeString(&writeStr, L"Send Message To Ring3 by IRP_MJ_WRITE");
+		ioStack->Parameters.Write.Length = writeStr.Length;
+		memcpy(buffer, &writeStr, writeStr.Length);
+		Irp->IoStatus.Information = writeStr.Length;
 	}
 
 	Irp->IoStatus.Status = status;
@@ -129,6 +131,7 @@ VOID BindMajorFunctionByReadWrite(PDRIVER_OBJECT pDriver) {
 }
 
 NTSTATUS DriverEntry(PDRIVER_OBJECT pDriver, PUNICODE_STRING pReg) {
+	// BindMajorFunctionByDeviceIoControl(pDriver);
 	BindMajorFunctionByReadWrite(pDriver);
 
 	NTSTATUS status;
