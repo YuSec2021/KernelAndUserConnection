@@ -21,7 +21,7 @@ HANDLE OpenDevice() {
 		0
 	);
 
-	// check 
+	// check DEVICE_OBJECT
 	if (pDevice == INVALID_HANDLE_VALUE) {
 		printf("Open Device Failed. \r\n");
 		return NULL;
@@ -50,17 +50,32 @@ void receiveMessage() {
 	int ret = 0;
 	ULONG retLen = 0;
 
-	BOOLEAN res = DeviceIoControl(pDevice, TEST_R0TOR3_CODE, NULL, NULL, &ret, sizeof(ULONG), &retLen, NULL);
+	BOOLEAN res = DeviceIoControl(pDevice, TEST_R0TOR3_CODE, NULL, NULL, &ret, 4, &retLen, NULL);
 	if (!res) {
 		printf("Receive Message Failed..\r\n");
 	}
 
-	printf("[db] Receive Message From Ring0: %x\r\n", ret);
+	printf("retLen: %d\r\n", retLen);
+	printf("[db] Receive Message From Ring0: %d\r\n", ret);
 	CloseHandle(pDevice);
 }
 
+
 int _tmain(int argc, _TCHAR* argv[]) {
-	//sendMessage();
-	receiveMessage();
+	/*sendMessage();
+	receiveMessage();*/
+
+	HANDLE pDevice = OpenDevice();
+	char sendStr[] = "Send Message To Ring0 By IRP_MJ_READ";
+	BOOLEAN res = WriteFile(pDevice, sendStr, strlen(sendStr), NULL, NULL);
+	if (res) {
+		printf("Write Success\r\n");
+	}
+
+	char* recStr = (char*)malloc(0x1000);
+
+	res = ReadFile(pDevice, recStr, 0x1000, NULL, NULL);
+
+
 	return 0;
 }

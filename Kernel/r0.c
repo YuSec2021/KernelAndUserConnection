@@ -7,6 +7,7 @@
 #define CDO_NAME L"\\Device\\TestDevice"
 #define SYM_NAME L"\\??\\TestDevice"
 
+
 PDEVICE_OBJECT pDevice = NULL;
 
 NTSTATUS TestCreateCDO(PDRIVER_OBJECT pDriver) {
@@ -39,7 +40,7 @@ NTSTATUS InitDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
 	return status;
 }
 
-NTSTATUS TestDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
+NTSTATUS DeviceIoControlDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
 	PIO_STACK_LOCATION ioStack = IoGetCurrentIrpStackLocation(Irp);
 	NTSTATUS status = STATUS_SUCCESS;
 	ULONG retLen = 0;
@@ -48,7 +49,8 @@ NTSTATUS TestDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
 
 		switch (ioStack->Parameters.DeviceIoControl.IoControlCode) {
 			case TEST_R3TOR0_CODE:
-			{
+			{	
+				//DbgBreakPoint();
 				PVOID buffer = Irp->AssociatedIrp.SystemBuffer;
 				ULONG inlen = ioStack->Parameters.DeviceIoControl.InputBufferLength;
 				// receive Message
@@ -57,11 +59,10 @@ NTSTATUS TestDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
 			}
 			case TEST_R0TOR3_CODE:
 			{
-				PVOID buffer = Irp->AssociatedIrp.SystemBuffer;
 				ULONG outlen = ioStack->Parameters.DeviceIoControl.OutputBufferLength;
 				// send Message
 				ULONG x = 2000;
-				memcpy((PULONG)buffer, &x, sizeof(ULONG));
+				memcpy(Irp->AssociatedIrp.SystemBuffer, &x, outlen);
 				Irp->IoStatus.Information = outlen; // ÉèÖÃ
 				DbgBreakPoint();
 				break;
@@ -72,25 +73,63 @@ NTSTATUS TestDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
 		}
 
 	}
-	Irp->IoStatus.Status = status;
-	Irp->IoStatus.Information = retLen;
-	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
+	Irp->IoStatus.Status = status;
+	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 	return status;
 
 }
 
 VOID Unload(PDRIVER_OBJECT driver) {
 	UNICODE_STRING symName = RTL_CONSTANT_STRING(SYM_NAME);
+	if (NT_SUCCESS(IoDeleteSymbolicLink(&symName))) {
+		KdPrintEx((77, 0, "Delete Symbolic Link..\r\n"));
+	}
 	IoDeleteDevice(pDevice);
-	IoDeleteSymbolicLink(&symName);
 }
 
-NTSTATUS DriverEntry(PDRIVER_OBJECT pDriver, PUNICODE_STRING pReg) {
+NTSTATUS ReadWriteDispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
+	PIO_STACK_LOCATION ioStack = IoGetCurrentIrpStackLocation(Irp);
+	NTSTATUS status = STATUS_SUCCESS;
+	ULONG retLen = 0;
+
+	PVOID buffer = Irp->AssociatedIrp.SystemBuffer;
+	if (ioStack->MajorFunction == IRP_MJ_READ) { // Read Data From Ring3
+		ULONG readLen = ioStack->Parameters.Read.Length;
+		LARGE_INTEGER ByteOffset = ioStack->Parameters.Read.ByteOffset;
+		KdPrintEx((77, 0, "[db]: %s\r\n", buffer));
+	}
+
+	if (ioStack->MajorFunction == IRP_MJ_WRITE) { // Write Data To Ring3
+		ULONG writeLen = ioStack->Parameters.Write.Length;
+		LARGE_INTEGER ByteOffset = ioStack->Parameters.Write.ByteOffset;
+		UNICODE_STRING sen
+		ioStack->Parameters.Write.Length = 
+	}
+
+	Irp->IoStatus.Status = status;
+	IoCompleteRequest(Irp, IO_NO_INCREMENT);
+	return status;
+
+}
+
+VOID BindMajorFunctionByDeviceIoControl(PDRIVER_OBJECT pDriver) {
 	pDriver->DriverUnload = Unload;
 	pDriver->MajorFunction[IRP_MJ_CREATE] = InitDispatch;
 	pDriver->MajorFunction[IRP_MJ_CLOSE] = InitDispatch;
-	pDriver->MajorFunction[IRP_MJ_DEVICE_CONTROL] = TestDispatch;
+	pDriver->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DeviceIoControlDispatch;
+}
+
+VOID BindMajorFunctionByReadWrite(PDRIVER_OBJECT pDriver) {
+	pDriver->DriverUnload = Unload;
+	pDriver->MajorFunction[IRP_MJ_CREATE] = InitDispatch;
+	pDriver->MajorFunction[IRP_MJ_CLOSE] = InitDispatch;
+	pDriver->MajorFunction[IRP_MJ_READ] = ReadWriteDispatch;
+	pDriver->MajorFunction[IRP_MJ_WRITE] = ReadWriteDispatch;
+}
+
+NTSTATUS DriverEntry(PDRIVER_OBJECT pDriver, PUNICODE_STRING pReg) {
+	BindMajorFunctionByReadWrite(pDriver);
 
 	NTSTATUS status;
 	status = TestCreateCDO(pDriver);
